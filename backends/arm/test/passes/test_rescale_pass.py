@@ -41,9 +41,8 @@ class RescaleNetwork(torch.nn.Module):
 def test_insert_rescale_tosa_INT(test_data: tuple[torch.Tensor, torch.Tensor]):
     """Tests a model with many ops that requires rescales.
 
-    As more ops are quantized to int32 and need the InsertRescalesPass, make
-    sure that they play nicely together.
-
+    As more ops are quantized to int32 and need the InsertRescalesPass,
+    make sure that they play nicely together.
     """
     module = RescaleNetwork()
     pipeline = TosaPipelineINT(
@@ -62,9 +61,8 @@ def test_insert_rescale_tosa_INT(test_data: tuple[torch.Tensor, torch.Tensor]):
 def test_insert_rescale_u55_INT(test_data: input_t):
     """Tests a model with many ops that requires rescales.
 
-    As more ops are quantized to int32 and need the InsertRescalesPass, make
-    sure that they play nicely together.
-
+    As more ops are quantized to int32 and need the InsertRescalesPass,
+    make sure that they play nicely together.
     """
     module = RescaleNetwork()
     pipeline = EthosU55PipelineINT(
@@ -81,9 +79,13 @@ def test_insert_rescale_u55_INT(test_data: input_t):
 def test_insert_rescale_u85_INT(test_data: input_t):
     """Tests a model with many ops that requires rescales.
 
-    As more ops are quantized to int32 and need the InsertRescalesPass, make
-    sure that they play nicely together.
+    As more ops are quantized to int32 and need the InsertRescalesPass,
+    make sure that they play nicely together.
 
+    Uses qtol=2 because FuseConsecutiveRescalesPass removes identity
+    RESCALE pairs, bypassing INT8 clamp. The deep 6-op chain
+    (exp→log→add→sub→mul→ sigmoid) accumulates rounding beyond the
+    default qtol=1.
     """
     module = RescaleNetwork()
     pipeline = EthosU85PipelineINT(
@@ -91,5 +93,6 @@ def test_insert_rescale_u85_INT(test_data: input_t):
         test_data=test_data,
         aten_ops=[],
         exir_ops=[],
+        qtol=2,
     )
     pipeline.run()

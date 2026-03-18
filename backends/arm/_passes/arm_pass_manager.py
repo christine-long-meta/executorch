@@ -98,6 +98,7 @@ from executorch.backends.arm._passes import (
     DecorateFp32toInt32CastingPass,
     FoldAndAnnotateQParamsPass,
     FuseBatchNorm2dPass,
+    FuseConsecutiveRescalesPass,
     FuseConstantArgsPass,
     FuseDuplicateUsersPass,
     FuseEqualPlaceholdersPass,
@@ -183,8 +184,7 @@ class ArmPassManager(PassManager):
         override_config: ArmPassPipelineConfig | None = None,
     ) -> tuple[type, ...]:
         """Configures the pass manager to skip certain passes based on the
-        ArmPassPipelineConfig class found in the compile spec.
-        """
+        ArmPassPipelineConfig class found in the compile spec."""
         skip_set: set[type] = set()
 
         config = override_config or self.compile_spec.get_pass_pipeline_config()
@@ -213,9 +213,8 @@ class ArmPassManager(PassManager):
         """Validates that necessary passes have run before transforming to
         backend.
 
-        Note that this differs from the original validate_constraints function,
-        which only checks the order of passes.
-
+        Note that this differs from the original validate_constraints
+        function, which only checks the order of passes.
         """
         passes_to_run = defaultdict(list)
 
@@ -245,7 +244,6 @@ class ArmPassManager(PassManager):
         Args:
             target_pass_type: The pass class to insert before (e.g., InsertTableOpsPass)
             passes: List of pass instances to insert
-
         """
         self._pass_insertions.setdefault(
             target_pass_type, PassInsertions()
@@ -260,7 +258,6 @@ class ArmPassManager(PassManager):
         Args:
             target_pass_type: The pass class to insert after
             passes: List of pass instances to insert
-
         """
         self._pass_insertions.setdefault(
             target_pass_type, PassInsertions()
@@ -273,7 +270,6 @@ class ArmPassManager(PassManager):
 
         Raises:
             ValueError: If any registered target pass type is not found in the pipeline.
-
         """
         if self._insertions_applied or not self._pass_insertions:
             return
@@ -317,14 +313,13 @@ class ArmPassManager(PassManager):
         self._insertions_applied = True
 
     def _configure_pass_insertions(self, exported_program: ExportedProgram) -> None:
-        """Hook for subclasses to configure pass insertions. Called at the START
-        of pipeline construction, before any passes are added.
+        """Hook for subclasses to configure pass insertions. Called at the
+        START of pipeline construction, before any passes are added.
 
         Subclasses should override this to call insert_passes_before/after.
 
         Args:
             exported_program: The exported program being transformed
-
         """
         pass
 
@@ -380,6 +375,7 @@ class ArmPassManager(PassManager):
                 # Ticket: MLETORCH-1539
                 DecomposeLinearPass(),
                 InsertRescaleInt32Pass(),
+                FuseConsecutiveRescalesPass(),
                 InsertControlFlowRescalesPass(),
                 DecomposeQuantNodesPass(),
             ]
